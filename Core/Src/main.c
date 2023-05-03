@@ -58,6 +58,15 @@ typedef enum STATE {
     STATE_START,
 } STATES;
 
+struct ADC_t
+{
+  uint16_t value;
+  uint16_t low_threshold;
+  uint16_t high_threshold;
+};
+
+struct ADC_t adc = {.value = 0, .low_threshold = 40 , .high_threshold = 3900};
+
 uint16_t flag    = 0;
 enum STATE state = STATE_START;
 /* USER CODE END PV */
@@ -135,7 +144,7 @@ int main(void)
 
     // HAL_TIM_OC_Start(&htim1, TIM_CHANNEL_2);
     // HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
-    uint16_t adc = 1;
+
     /* USER CODE END 2 */
 
     /* Infinite loop */
@@ -145,20 +154,20 @@ int main(void)
 
         /* USER CODE BEGIN 3 */
         if (state == STATE_START) {
-            HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP2xR = (0xAFDF / 360 * (adc_value / 22) + 10);
+            HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP2xR = (0xAFDF / 360 * (adc.value / 22) + 10);
             HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP3xR =
-                (0xAFDF / 2 + 0xAFDF / 360 * (adc_value / 22) + 10);
-            adc_value = HAL_ADC_GetValue(&hadc1);
-            if (adc_value > 3900) {
-                adc_value = 3900;
-            } else if (adc_value < 50) {
-                adc_value = 50;
+                (0xAFDF / 2 + 0xAFDF / 360 * (adc.value / 22) + 10);
+            adc.value = HAL_ADC_GetValue(&hadc1);
+            if (adc.value > adc.high_threshold) {
+                adc.value = adc.high_threshold;
+            } else if (adc.value < adc.low_threshold) {
+                adc.value = adc.low_threshold;
             }
             HAL_ADC_Start(&hadc1);
         }
 
         if (flag == 1) {
-          
+
             flag  = 0;
             state = !state;
             if (state == STATE_STOP) {
