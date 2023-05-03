@@ -58,14 +58,14 @@ typedef enum STATE {
     STATE_START,
 } STATES;
 
-struct ADC_t
-{
-  uint16_t value;
-  uint16_t low_threshold;
-  uint16_t high_threshold;
+struct ADC_t {
+    uint16_t value;
+    uint16_t low_threshold;
+    uint16_t high_threshold;
+    uint16_t degrees_conv;
 };
 
-struct ADC_t adc = {.value = 0, .low_threshold = 30 , .high_threshold = 3900};
+struct ADC_t adc = {.value = 0, .low_threshold = 30, .high_threshold = 3900, .degrees_conv = 22};
 
 uint16_t flag    = 0;
 enum STATE state = STATE_START;
@@ -154,9 +154,10 @@ int main(void)
 
         /* USER CODE BEGIN 3 */
         if (state == STATE_START) {
-            HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP2xR = (0xAFDF / 360 * (adc.value / 22) + 10);
+            HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP2xR = 
+            (0xAFDF / 360 * (adc.value / adc.degrees_conv));
             HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP3xR =
-                (0xAFDF / 2 + 0xAFDF / 360 * (adc.value / 22) + 10);
+                (0xAFDF / 2 + 0xAFDF / 360 * (adc.value / adc.degrees_conv));
             adc.value = HAL_ADC_GetValue(&hadc1);
             if (adc.value > adc.high_threshold) {
                 adc.value = adc.high_threshold;
