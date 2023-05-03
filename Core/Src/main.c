@@ -65,7 +65,7 @@ struct ADC_t
   uint16_t high_threshold;
 };
 
-struct ADC_t adc = {.value = 0, .low_threshold = 40 , .high_threshold = 3900};
+struct ADC_t adc = {.value = 0, .low_threshold = 30 , .high_threshold = 3900};
 
 uint16_t flag    = 0;
 enum STATE state = STATE_START;
