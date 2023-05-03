@@ -154,6 +154,7 @@ int main(void)
 
         /* USER CODE BEGIN 3 */
         if (state == STATE_START) {
+            /* set new tim CCRx registers based on ADC value */
             HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP2xR = 
             (0xAFDF / 360 * (adc.value / adc.degrees_conv));
             HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP3xR =
@@ -168,16 +169,18 @@ int main(void)
         }
 
         if (flag == 1) {
-
+            /* push button pressed*/
             flag  = 0;
-            state = !state;
+            state = !state; // toggle state
             if (state == STATE_STOP) {
+              /* set HRTIM CCRx to 0 */
                 HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP1xR = 0;
                 HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP2xR = 0;
                 HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP3xR = 0;
                 HAL_ADC_Stop(&hadc1);
                 CLEAR_BIT(GPIOA->ODR, GPIO_PIN_5);
             } else if (state == STATE_START) {
+                /* set HRTIM CCRx to half period to reinit phase shift*/
                 HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP1xR = 0xAFDF / 2;
                 HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP2xR = 0;
                 HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP3xR = 0;
