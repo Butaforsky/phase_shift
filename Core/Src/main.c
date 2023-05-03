@@ -59,7 +59,7 @@ typedef enum STATE {
 } STATES;
 
 uint16_t flag    = 0;
-enum STATE state = 0;
+enum STATE state = STATE_START;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -144,24 +144,36 @@ int main(void)
         /* USER CODE END WHILE */
 
         /* USER CODE BEGIN 3 */
-        HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP2xR = (0xAFDF / 360 * (adc_value / 22));
-        HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP3xR =
-            (0xAFDF - 1 / 2 + 0xAFDF / 360 * (adc_value / 22));
-        adc_value = HAL_ADC_GetValue(&hadc1);
-        HAL_ADC_Start(&hadc1);
+        if (state == STATE_START) {
+            HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP2xR = (0xAFDF / 360 * (adc_value / 22) + 10);
+            HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP3xR =
+                (0xAFDF / 2 + 0xAFDF / 360 * (adc_value / 22) + 10);
+            adc_value = HAL_ADC_GetValue(&hadc1);
+            if (adc_value > 3900) {
+                adc_value = 3900;
+            } else if (adc_value < 50) {
+                adc_value = 50;
+            }
+            HAL_ADC_Start(&hadc1);
+        }
+
         if (flag == 1) {
-            HAL_Delay(100);
-            flag = 0;
+          
+            flag  = 0;
             state = !state;
             if (state == STATE_STOP) {
-                HRTIM1->sMasterRegs.MCR &= ~(HRTIM_MCR_TACEN + HRTIM_MCR_TDCEN);
-                //HRTIM1->sMasterRegs.MCR = HRTIM_MCR_TACEN + HRTIM_MCR_TDCEN;
+                HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP1xR = 0;
+                HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP2xR = 0;
+                HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP3xR = 0;
+                HAL_ADC_Stop(&hadc1);
+                CLEAR_BIT(GPIOA->ODR, GPIO_PIN_5);
+            } else if (state == STATE_START) {
+                HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP1xR = 0xAFDF / 2;
+                HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP2xR = 0;
+                HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP3xR = 0;
+                SET_BIT(GPIOA->ODR, GPIO_PIN_5);
+                HAL_ADC_Start(&hadc1);
             }
-            else if (state == STATE_START)
-            {
-              HRTIM1->sMasterRegs.MCR = HRTIM_MCR_TACEN + HRTIM_MCR_TDCEN;
-            }
-            
         }
     }
     /* USER CODE END 3 */
