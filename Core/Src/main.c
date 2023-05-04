@@ -48,6 +48,7 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+const uint16_t PERIOD = 0x3E25; 
 uint16_t adc_value               = 0;
 volatile uint16_t adc_value_prev = 0;
 static uint16_t dutyCycle        = 50;
@@ -123,11 +124,11 @@ int main(void)
     /* Preload enabled on REP event*/
     HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].TIMxCR = HRTIM_TIMCR_CONT + HRTIM_TIMCR_PREEN + HRTIM_TIMCR_TREPU + HRTIM_TIMCR_CK_PSC_1;
     /* Set period to 33kHz and duty cycles to 25% */
-    HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].PERxR  = 0xAFDF; //_33KHz_PERIOD;
-    HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP1xR = 0xAFDF / 2;
-    HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP2xR = 0xAFDF / 8;
+    HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].PERxR  = PERIOD; //;
+    HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP1xR = PERIOD / 2;
+    HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP2xR = PERIOD / 8;
     HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP3xR =
-        0xAFDF / 2 + 0xAFDF / 8;
+        PERIOD / 2 + PERIOD / 8;
     /* TA1 output set on TIMA period and reset on TIMA CMP1 event*/
     HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].SETx1R = HRTIM_SET1R_PER;
     HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].RSTx1R = HRTIM_RST1R_CMP1;
@@ -156,9 +157,9 @@ int main(void)
         if (state == STATE_START) {
             /* set new tim CCRx registers based on ADC value */
             HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP2xR = 
-            (0xAFDF / 360 * (adc.value / adc.degrees_conv));
+            (PERIOD / 360 * (adc.value / adc.degrees_conv));
             HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP3xR =
-                (0xAFDF / 2 + 0xAFDF / 360 * (adc.value / adc.degrees_conv));
+                (PERIOD / 2 + PERIOD / 360 * (adc.value / adc.degrees_conv));
             adc.value = HAL_ADC_GetValue(&hadc1);
             if (adc.value > adc.high_threshold) {
                 adc.value = adc.high_threshold;
@@ -181,7 +182,7 @@ int main(void)
                 CLEAR_BIT(GPIOA->ODR, GPIO_PIN_5);
             } else if (state == STATE_START) {
                 /* set HRTIM CCRx to half period to reinit phase shift*/
-                HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP1xR = 0xAFDF / 2;
+                HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP1xR = PERIOD / 2;
                 HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP2xR = 0;
                 HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP3xR = 0;
                 SET_BIT(GPIOA->ODR, GPIO_PIN_5);
