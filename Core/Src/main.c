@@ -48,7 +48,7 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-const uint16_t PERIOD = 0x3E25; 
+const uint16_t PERIOD = 0x308C; 
 uint16_t adc_value               = 0;
 volatile uint16_t adc_value_prev = 0;
 static uint16_t dutyCycle        = 50;
