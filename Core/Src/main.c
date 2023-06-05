@@ -38,11 +38,12 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define HRTIM_FREQ 5440000000
-#define BASE       HRTIM_FREQ / (100000 * 4)
-#define OVER       HRTIM_FREQ / (105000 * 4)
+#define HRTIM_FREQ    5440000000
+#define FREQ_IDLE     HRTIM_FREQ / (100000 * 4)
+#define MODULATE_ZERO HRTIM_FREQ / (103000 * 4)
+#define MODULATE_ONE  HRTIM_FREQ / (105000 * 4)
 
-#define B(x)       S_to_binary_(#x)
+#define B(x)          S_to_binary_(#x)
 
 static inline unsigned long long S_to_binary_(const char *s)
 {
@@ -150,10 +151,11 @@ int main(void)
     /* TIMA counter operating in continuous mode with prescaler = 010b (div.
  by 4) */
     /* Preload enabled on REP event*/
-    PERIOD = OVER; // BASE;//0x3B5E;//(uint16_t)(hrtim_freq / base_freq);
+    PERIOD = FREQ_IDLE; // BASE;//0x3B5E;//(uint16_t)(hrtim_freq / base_freq);
     // Real phase shift must be between PI/2 and PI
     // TODO: Saturate low phase shift at PI/2
-    HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].TIMxCR = HRTIM_TIMCR_CONT + HRTIM_TIMCR_PREEN + HRTIM_TIMCR_TREPU + HRTIM_TIMCR_CK_PSC_1;
+    HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].TIMxCR = HRTIM_TIMCR_CONT +
+     HRTIM_TIMCR_PREEN + HRTIM_TIMCR_TREPU + HRTIM_TIMCR_CK_PSC_1;
     /* Set period to 33kHz and duty cycles to 25% */
     HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].PERxR  = PERIOD; //;
     HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP1xR = PERIOD / 2;
@@ -214,6 +216,7 @@ int main(void)
             HAL_ADC_Start(&hadc1);
 
             send_digits(dec2bin(10), 8);
+            HAL_UART_Transmit(&hlpuart1, (uint8_t *)"Transmition complete\n", 22, 1000);
         }
 
         if (flag == 1) {
@@ -306,7 +309,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
         if (freq_flag == 79) // O is for over (frequency is equal to 110kHz)
         {
             freq_flag                                            = 0;
-            PERIOD                                               = OVER;
+            PERIOD                                               = MODULATE_ONE;
             HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].PERxR  = PERIOD; //;
             HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP1xR = PERIOD / 2;
             HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP2xR = 0;
@@ -317,7 +320,7 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
         else if (freq_flag == 66) // B is for base (frequency is equal to 85kHz)
         {
             freq_flag                                            = 0;
-            PERIOD                                               = BASE;
+            PERIOD                                               = MODULATE_ZERO;
             HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].PERxR  = PERIOD; //;
             HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP1xR = PERIOD / 2;
             HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP2xR = 0;
@@ -361,7 +364,7 @@ void send_digits(int num, int digits)
         send_digits(num / 10, digits - 1);
         sprintf(word_to_send, "%d\n", num % 10);
         if (num % 10 == 0) {
-            PERIOD                                               = BASE;
+            PERIOD                                               = MODULATE_ZERO;
             HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].PERxR  = PERIOD; //;
             HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP1xR = PERIOD / 2;
             HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP2xR = 0;
@@ -376,7 +379,7 @@ void send_digits(int num, int digits)
             }
 
         } else if (num % 10 == 1) {
-            PERIOD                                               = OVER;
+            PERIOD                                               = MODULATE_ONE;
             HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].PERxR  = PERIOD; //;
             HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP1xR = PERIOD / 2;
             HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP2xR = 0;
