@@ -81,7 +81,7 @@ struct ADC_t {
     uint16_t degrees_conv;
 };
 
-struct ADC_t adc = {.value = 0, .low_threshold = 30, .high_threshold = 3900, .degrees_conv = 22};
+struct ADC_t adc = {.value = 0, .low_threshold = 2000, .high_threshold = 3900, .degrees_conv = 22};
 
 uint16_t flag     = 0;
 uint8_t freq_flag = 0;
@@ -182,7 +182,7 @@ int main(void)
 
     int local_bin = 0;
     local_bin = dec2bin(10);
-    sprintf(word_to_send, "binary [0]: %d\n", local_bin & (1 << 0));
+    sprintf(word_to_send, "binary [0]: %d\n", local_bin);
     HAL_UART_Transmit(&hlpuart1, (uint8_t *)word_to_send, strlen(word_to_send), 1000);
 
     // HAL_TIM_OC_Start(&htim1, TIM_CHANNEL_2);
@@ -320,10 +320,18 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
             HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP3xR = 0;
             HAL_UART_Transmit(&hlpuart1, (uint8_t *)"Base\n", 4, 100);
         }
+        /* Start Timer A and Timer D */
+        HRTIM1->sMasterRegs.MCR = HRTIM_MCR_TACEN;
     }
     HAL_UART_Receive_IT(&hlpuart1, (uint8_t *)&freq_flag, 1);
 }
 
+/**
+ * @brief Takes decimal number and converts it to binary
+ * 
+ * @param num 
+ * @return int 
+ */
 int dec2bin(int num)
 {
     int bin = 0, k = 1;
@@ -335,6 +343,46 @@ int dec2bin(int num)
     }
 
     return bin;
+}
+
+/**
+ * @brief takes binary number and sends it to UART in the form of digits
+ * 
+ * @param num 
+ * @param digits 
+ */
+void send_digits(int num, int digits)
+{
+    if (digits > 0) {
+        send_digits( num / 10, digits - 1);
+        sprintf(word_to_send, "%d\n", num % 10);
+        if(num % 10 == 0)
+        {
+          PERIOD = BASE;
+          HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].PERxR  = PERIOD; //;
+          HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP1xR = PERIOD / 2;
+          HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP2xR = 0;
+          HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP3xR = 0;
+
+          __HAL_TIM_CLEAR_FLAG(&htim1, TIM_SR_UIF); // очищаем флаг
+          /* Start Timer A and Timer D */
+          HRTIM1->sMasterRegs.MCR = HRTIM_MCR_TACEN;
+          HAL_TIM_Base_Start_IT(&htim1);
+        }
+        else if(num % 10 == 1)
+        {
+          PERIOD = OVER;
+          HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].PERxR  = PERIOD; //;
+          HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP1xR = PERIOD / 2;
+          HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP2xR = 0;
+          HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP3xR = 0;
+          /* Start Timer A and Timer D */
+          HRTIM1->sMasterRegs.MCR = HRTIM_MCR_TACEN;
+          __HAL_TIM_CLEAR_FLAG(&htim1, TIM_SR_UIF); // очищаем флаг
+          HAL_TIM_Base_Start_IT(&htim1);
+        }
+        HAL_UART_Transmit(&hlpuart1, (uint8_t *)word_to_send, strlen(word_to_send), 100);
+    }
 }
 /* USER CODE END 4 */
 
