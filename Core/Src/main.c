@@ -38,7 +38,8 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define BASE 5440000000 / (120000 * 4)
+#define OVER 5440000000 / (105000 * 4)
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -77,9 +78,9 @@ enum STATE state = STATE_START;
 char word_to_send[20] = {0,};
 
 
-long long hrtim_freq = 5440000000;
+uint64_t hrtim_freq = 5440000000;
 
-uint32_t base_freq = 83000;
+uint32_t base_freq = 93000;
 uint32_t over_freq = 110000;
 /* USER CODE END PV */
 
@@ -135,7 +136,7 @@ int main(void)
     /* TIMA counter operating in continuous mode with prescaler = 010b (div.
  by 4) */
     /* Preload enabled on REP event*/
-    PERIOD = hrtim_freq / base_freq;
+    PERIOD = BASE;//BASE;//0x3B5E;//(uint16_t)(hrtim_freq / base_freq);
 
     HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].TIMxCR = HRTIM_TIMCR_CONT + HRTIM_TIMCR_PREEN + HRTIM_TIMCR_TREPU + HRTIM_TIMCR_CK_PSC_1;
     /* Set period to 33kHz and duty cycles to 25% */
