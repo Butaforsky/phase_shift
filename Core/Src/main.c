@@ -42,16 +42,16 @@
 #define BASE       HRTIM_FREQ / (100000 * 4)
 #define OVER       HRTIM_FREQ / (105000 * 4)
 
-#define B(x) S_to_binary_(#x)
+#define B(x)       S_to_binary_(#x)
 
 static inline unsigned long long S_to_binary_(const char *s)
 {
-        unsigned long long i = 0;
-        while (*s) {
-                i <<= 1;
-                i += *s++ - '0';
-        }
-        return i;
+    unsigned long long i = 0;
+    while (*s) {
+        i <<= 1;
+        i += *s++ - '0';
+    }
+    return i;
 }
 /* USER CODE END PD */
 
@@ -86,6 +86,9 @@ struct ADC_t adc = {.value = 0, .low_threshold = 2000, .high_threshold = 3900, .
 uint16_t flag     = 0;
 uint8_t freq_flag = 0;
 
+uint8_t max_bits_count = 8;
+uint8_t bit_send_flag  = 0;
+
 enum STATE state = STATE_START;
 
 char word_to_send[20] = {
@@ -99,6 +102,8 @@ uint64_t hrtim_freq = 5440000000;
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
 int dec2bin(int num);
+void hrtim_rebase_freq(uint16_t frequency_to_rebase);
+void send_digits(int num, int digits);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -138,9 +143,7 @@ int main(void)
     MX_LPUART1_UART_Init();
     MX_TIM1_Init();
     MX_ADC1_Init();
-    MX_TIM2_Init();
     MX_HRTIM1_Init();
-    MX_TIM3_Init();
     /* USER CODE BEGIN 2 */
 
     HAL_ADC_Start(&hadc1);
@@ -181,7 +184,7 @@ int main(void)
     HAL_UART_Transmit(&hlpuart1, (uint8_t *)word_to_send, strlen(word_to_send), 1000);
 
     int local_bin = 0;
-    local_bin = dec2bin(10);
+    local_bin     = dec2bin(10);
     sprintf(word_to_send, "binary [0]: %d\n", local_bin);
     HAL_UART_Transmit(&hlpuart1, (uint8_t *)word_to_send, strlen(word_to_send), 1000);
 
@@ -209,6 +212,8 @@ int main(void)
                 adc.value = adc.low_threshold;
             }
             HAL_ADC_Start(&hadc1);
+
+            send_digits(dec2bin(10), 8);
         }
 
         if (flag == 1) {
@@ -229,7 +234,6 @@ int main(void)
                 HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP3xR = 0;
                 SET_BIT(GPIOA->ODR, GPIO_PIN_5);
                 HAL_ADC_Start(&hadc1);
-                HAL_TIM_Base_Start_IT(&htim1);
             }
         }
     }
@@ -292,7 +296,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
     if (htim->Instance == TIM1) {
         // send next bit
-        word_to_send[0] % 2 == 0 ? SET_BIT(word_to_send[0], 0) : CLEAR_BIT(word_to_send[0], 0);
+        bit_send_flag = 1;
     }
 }
 
@@ -328,9 +332,9 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 
 /**
  * @brief Takes decimal number and converts it to binary
- * 
- * @param num 
- * @return int 
+ *
+ * @param num
+ * @return int
  */
 int dec2bin(int num)
 {
@@ -347,42 +351,56 @@ int dec2bin(int num)
 
 /**
  * @brief takes binary number and sends it to UART in the form of digits
- * 
- * @param num 
- * @param digits 
+ *
+ * @param num
+ * @param digits
  */
 void send_digits(int num, int digits)
 {
     if (digits > 0) {
-        send_digits( num / 10, digits - 1);
+        send_digits(num / 10, digits - 1);
         sprintf(word_to_send, "%d\n", num % 10);
-        if(num % 10 == 0)
-        {
-          PERIOD = BASE;
-          HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].PERxR  = PERIOD; //;
-          HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP1xR = PERIOD / 2;
-          HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP2xR = 0;
-          HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP3xR = 0;
+        if (num % 10 == 0) {
+            PERIOD                                               = BASE;
+            HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].PERxR  = PERIOD; //;
+            HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP1xR = PERIOD / 2;
+            HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP2xR = 0;
+            HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP3xR = 0;
 
-          __HAL_TIM_CLEAR_FLAG(&htim1, TIM_SR_UIF); // очищаем флаг
-          /* Start Timer A and Timer D */
-          HRTIM1->sMasterRegs.MCR = HRTIM_MCR_TACEN;
-          HAL_TIM_Base_Start_IT(&htim1);
-        }
-        else if(num % 10 == 1)
-        {
-          PERIOD = OVER;
-          HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].PERxR  = PERIOD; //;
-          HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP1xR = PERIOD / 2;
-          HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP2xR = 0;
-          HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP3xR = 0;
-          /* Start Timer A and Timer D */
-          HRTIM1->sMasterRegs.MCR = HRTIM_MCR_TACEN;
-          __HAL_TIM_CLEAR_FLAG(&htim1, TIM_SR_UIF); // очищаем флаг
-          HAL_TIM_Base_Start_IT(&htim1);
+            __HAL_TIM_CLEAR_FLAG(&htim1, TIM_SR_UIF); // очищаем флаг
+            /* Start Timer A and Timer D */
+            HRTIM1->sMasterRegs.MCR = HRTIM_MCR_TACEN;
+            HAL_TIM_Base_Start_IT(&htim1);
+            while (bit_send_flag != 1) {
+                __NOP();
+            }
+
+        } else if (num % 10 == 1) {
+            PERIOD                                               = OVER;
+            HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].PERxR  = PERIOD; //;
+            HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP1xR = PERIOD / 2;
+            HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP2xR = 0;
+            HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP3xR = 0;
+            /* Start Timer A and Timer D */
+            HRTIM1->sMasterRegs.MCR = HRTIM_MCR_TACEN;
+            __HAL_TIM_CLEAR_FLAG(&htim1, TIM_SR_UIF); // очищаем флаг
+            HAL_TIM_Base_Start_IT(&htim1);
+            while (bit_send_flag != 1) {
+                __NOP();
+            }
         }
         HAL_UART_Transmit(&hlpuart1, (uint8_t *)word_to_send, strlen(word_to_send), 100);
     }
+}
+
+void hrtim_rebase_freq(uint16_t frequency_to_rebase)
+{
+    HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].PERxR  = PERIOD; //;
+    HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP1xR = PERIOD / 2;
+    HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP2xR = 0;
+    HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP3xR = 0;
+
+    HRTIM1->sMasterRegs.MCR = HRTIM_MCR_TACEN;
 }
 /* USER CODE END 4 */
 
