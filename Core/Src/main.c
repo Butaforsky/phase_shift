@@ -27,7 +27,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "stdio.h"
+#include "string.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -72,12 +73,17 @@ uint16_t flag    = 0;
 uint8_t freq_flag = 0;
 
 enum STATE state = STATE_START;
+
+char word_to_send[20] = {0,};
+
+uint16_t base_freq = 15500;
+uint16_t over_freq = 10900;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 /* USER CODE BEGIN PFP */
-
+int dec2bin(int num);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -119,12 +125,15 @@ int main(void)
   MX_ADC1_Init();
   MX_TIM2_Init();
   MX_HRTIM1_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
     
     HAL_ADC_Start(&hadc1);
     /* TIMA counter operating in continuous mode with prescaler = 010b (div.
  by 4) */
     /* Preload enabled on REP event*/
+    PERIOD = base_freq;
+
     HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].TIMxCR = HRTIM_TIMCR_CONT + HRTIM_TIMCR_PREEN + HRTIM_TIMCR_TREPU + HRTIM_TIMCR_CK_PSC_1;
     /* Set period to 33kHz and duty cycles to 25% */
     HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].PERxR  = PERIOD; //;
@@ -147,7 +156,14 @@ int main(void)
     HRTIM1->sMasterRegs.MCR = HRTIM_MCR_TACEN + HRTIM_MCR_TDCEN;
     
     HAL_UART_Receive_IT(&hlpuart1, (uint8_t*) &freq_flag, 1);
-    HAL_UART_Transmit(&hlpuart1, (uint8_t*) "start\r\n", 8, 1000);
+    HAL_UART_Transmit(&hlpuart1, (uint8_t*) "Start\n", 8, 1000);
+
+    sprintf(word_to_send, "DECIMAL: %d\n", 10);
+    HAL_UART_Transmit(&hlpuart1, (uint8_t*) word_to_send, strlen(word_to_send), 1000);
+    
+    sprintf(word_to_send, "binary: %d\n", dec2bin(10));
+    HAL_UART_Transmit(&hlpuart1, (uint8_t*) word_to_send, strlen(word_to_send), 1000);
+
     // HAL_TIM_OC_Start(&htim1, TIM_CHANNEL_2);
     // HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
 
@@ -172,7 +188,7 @@ int main(void)
                 adc.value = adc.low_threshold;
             }
             HAL_ADC_Start(&hadc1);
-        }
+        } 
 
         if (flag == 1) {
             /* push button pressed*/
@@ -192,6 +208,8 @@ int main(void)
                 HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP3xR = 0;
                 SET_BIT(GPIOA->ODR, GPIO_PIN_5);
                 HAL_ADC_Start(&hadc1);
+                HAL_TIM_Base_Start_IT(&htim1);
+
             }
         }
     }
@@ -253,6 +271,16 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
     }
 }
 
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+  if(htim->Instance == TIM1)
+  {
+    //send next bit
+    word_to_send[0] % 2 == 0 ? SET_BIT(word_to_send[0], 0) : CLEAR_BIT(word_to_send[0], 0);
+
+  }
+}
+
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
   if(huart->Instance == LPUART1)
@@ -275,6 +303,20 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
     
   }
   HAL_UART_Receive_IT(&hlpuart1, (uint8_t*)&freq_flag, 1);
+}
+
+int dec2bin(int num)
+{
+    int bin = 0, k = 1;
+
+    while (num)
+    {
+        bin += (num % 2) * k;
+        k *= 10;
+        num /= 2;
+    }
+
+    return bin;
 }
 /* USER CODE END 4 */
 
