@@ -185,7 +185,7 @@ int main(void)
 
     HAL_UART_Receive_IT(&hlpuart1, (uint8_t *)&freq_flag, 1);
     HAL_UART_Transmit(&hlpuart1, (uint8_t *)"Start\n", 8, 1000);
-    HAL_TIM_Base_Start_IT(&htim1);
+    //HAL_TIM_Base_Start_IT(&htim1);
     // HAL_TIM_OC_Start(&htim1, TIM_CHANNEL_2);
     // HAL_TIM_PWM_Start(&htim2, TIM_CHANNEL_1);
 
@@ -209,6 +209,14 @@ int main(void)
             } else if (adc.value < adc.low_threshold) {
                 adc.value = adc.low_threshold;
             }
+            send_digits(dec2bin(10), 4);
+            HAL_Delay(100);
+            hrtim_rebase_freq(100000);
+            HAL_Delay(100);
+            send_digits(dec2bin(15), 4);
+            HAL_Delay(100);
+            hrtim_rebase_freq(100000);
+            HAL_Delay(100);
             HAL_ADC_Start(&hadc1);
         }
 
@@ -370,21 +378,25 @@ void send_digits(int num, int digits)
         send_digits(num / 10, digits - 1);
         sprintf(word_to_send, "%d\n", num % 10);
         if (num % 10 == 0) {
-            hrtim_rebase_freq(103000);
-            for (uint32_t i = 0; i < 1000000; i++) {
+            hrtim_rebase_freq(105000);
+            GPIOA -> ODR &= ~(1 << 5);
+            for (uint32_t i = 0; i < 4000000; i++) {
                 __NOP();
             }
             /* Start Timer A and Timer D */
         } else if (num % 10 == 1) {
-            hrtim_rebase_freq(105000);
-            for (uint32_t i = 0; i < 1000000; i++) {
+            GPIOA -> ODR |= (1 << 5);
+            hrtim_rebase_freq(103000);
+            for (uint32_t i = 0; i < 4000000; i++) {
                 __NOP();
             }
+
             /* Start Timer A and Timer D */
             // __HAL_TIM_CLEAR_FLAG(&htim1, TIM_SR_UIF); // очищаем флаг
         }
         HAL_UART_Transmit(&hlpuart1, (uint8_t *)word_to_send, strlen(word_to_send), 100);
-    }
+    } 
+    
 }
 
 void hrtim_rebase_freq(uint32_t frequency_to_rebase)
