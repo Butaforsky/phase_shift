@@ -38,8 +38,9 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define BASE 5440000000 / (120000 * 4)
-#define OVER 5440000000 / (105000 * 4)
+#define HRTIM_FREQ 5440000000
+#define BASE HRTIM_FREQ / (100000 * 4)
+#define OVER HRTIM_FREQ / (105000 * 4)
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -77,11 +78,7 @@ enum STATE state = STATE_START;
 
 char word_to_send[20] = {0,};
 
-
 uint64_t hrtim_freq = 5440000000;
-
-uint32_t base_freq = 93000;
-uint32_t over_freq = 110000;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -136,8 +133,9 @@ int main(void)
     /* TIMA counter operating in continuous mode with prescaler = 010b (div.
  by 4) */
     /* Preload enabled on REP event*/
-    PERIOD = BASE;//BASE;//0x3B5E;//(uint16_t)(hrtim_freq / base_freq);
-
+    PERIOD = OVER;//BASE;//0x3B5E;//(uint16_t)(hrtim_freq / base_freq);
+    // Real phase shift must be between PI/2 and PI
+    // TODO: Saturate low phase shift at PI/2
     HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].TIMxCR = HRTIM_TIMCR_CONT + HRTIM_TIMCR_PREEN + HRTIM_TIMCR_TREPU + HRTIM_TIMCR_CK_PSC_1;
     /* Set period to 33kHz and duty cycles to 25% */
     HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].PERxR  = PERIOD; //;
