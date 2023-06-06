@@ -40,15 +40,15 @@
 /* USER CODE BEGIN PD */
 #define HRTIM_FREQ    5440000000
 
-#define CONST_ADJ     2
+#define CONST_ADJ     4
 
 #define FREQ_IDLE     HRTIM_FREQ / (100000 * CONST_ADJ)
 #define MODULATE_ZERO HRTIM_FREQ / (103000 * CONST_ADJ)
 #define MODULATE_ONE  HRTIM_FREQ / (105000 * CONST_ADJ)
 
-
-uint32_t low = 120000;
-uint32_t high = 150000;
+uint32_t idle = 101000;
+uint32_t low = 103000;
+uint32_t high = 105000;
 
 #define B(x)          S_to_binary_(#x)
 
@@ -212,11 +212,11 @@ int main(void)
             send_digits(dec2bin(10), 4);
             HAL_Delay(100);
             hrtim_rebase_freq(100000);
-            HAL_Delay(100);
+            HAL_Delay(500);
             send_digits(dec2bin(15), 4);
             HAL_Delay(100);
             hrtim_rebase_freq(100000);
-            HAL_Delay(100);
+            HAL_Delay(500);
             HAL_ADC_Start(&hadc1);
         }
 
@@ -365,7 +365,8 @@ int dec2bin(int num)
 }
 
 /**
- * @brief takes binary number and sends it to UART in the form of digits
+ * @brief takes binary number and sends it to UART in polling mode
+ * 
  *
  * @param num
  * @param digits
@@ -378,16 +379,15 @@ void send_digits(int num, int digits)
         send_digits(num / 10, digits - 1);
         sprintf(word_to_send, "%d\n", num % 10);
         if (num % 10 == 0) {
-            hrtim_rebase_freq(105000);
+            hrtim_rebase_freq(low);
             GPIOA -> ODR &= ~(1 << 5);
-            for (uint32_t i = 0; i < 4000000; i++) {
+            for (uint32_t i = 0; i < 1000000; i++) {
                 __NOP();
             }
-            /* Start Timer A and Timer D */
         } else if (num % 10 == 1) {
             GPIOA -> ODR |= (1 << 5);
-            hrtim_rebase_freq(103000);
-            for (uint32_t i = 0; i < 4000000; i++) {
+            hrtim_rebase_freq(high);
+            for (uint32_t i = 0; i < 1000000; i++) {
                 __NOP();
             }
 
@@ -396,13 +396,16 @@ void send_digits(int num, int digits)
         }
         HAL_UART_Transmit(&hlpuart1, (uint8_t *)word_to_send, strlen(word_to_send), 100);
     } 
+    else if (digits == 0) {
+      hrtim_rebase_freq(idle);
+    }
     
 }
 
 void hrtim_rebase_freq(uint32_t frequency_to_rebase)
 {
-    uint16_t local_PERIOD = HRTIM_FREQ / (frequency_to_rebase * 4);
-
+    uint16_t local_PERIOD = HRTIM_FREQ / (frequency_to_rebase * CONST_ADJ);
+    PERIOD = local_PERIOD;
     HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].PERxR  = local_PERIOD; //;
     HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP1xR = local_PERIOD / 2;
     HRTIM1->sTimerxRegs[HRTIM_TIMERINDEX_TIMER_A].CMP2xR = 0;
